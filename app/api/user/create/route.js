@@ -10,18 +10,20 @@ export async function POST(request) {
     // --------------------------
     // 🧪 Validate required fields
     // --------------------------
-    if (!inputData.clerk_id || !inputData.email || !inputData.name) {
+    // Fix: Check for both clerk_id and id to handle both cases
+    const clerkId = inputData.clerk_id || inputData.id;
+
+    if (!clerkId || !inputData.email || !inputData.name) {
       console.error("❌ Missing required user fields:", {
-        clerk_id: inputData.clerk_id,
+        clerk_id: clerkId,
         email: inputData.email,
         name: inputData.name,
       });
-
       return NextResponse.json(
         {
           state: false,
           error: "Missing required fields",
-          message: "clerk_id, email, and name are required",
+          message: "clerk_id (or id), email, and name are required",
         },
         { status: 400 }
       );
@@ -39,7 +41,7 @@ export async function POST(request) {
         {
           id: uuid,
           name: inputData.name || "Unnamed User",
-          clerk_id: inputData.clerk_id,
+          clerk_id: clerkId, // Use the extracted clerk_id
           username: inputData.username || "no-username",
           email: inputData.email || "no@email.com",
           img_url: inputData.img_url || "",
@@ -55,7 +57,6 @@ export async function POST(request) {
         hint: userError.hint,
         code: userError.code,
       });
-
       return NextResponse.json(
         {
           state: false,
@@ -77,7 +78,7 @@ export async function POST(request) {
       .insert([
         {
           id: generateUuid(),
-          user_id: inputData.clerk_id,
+          user_id: clerkId, // Use the extracted clerk_id
           remaining_minutes: 300,
           last_reset: new Date(),
         },
@@ -92,7 +93,6 @@ export async function POST(request) {
         hint: usageError.hint,
         code: usageError.code,
       });
-
       return NextResponse.json(
         {
           state: false,
