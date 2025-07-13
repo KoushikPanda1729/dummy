@@ -1,6 +1,6 @@
 // next-sitemap.config.js
 module.exports = {
-  siteUrl: "http://localhost:3000/",
+  siteUrl: "https://dummy-pi-two.vercel.app/",
   generateRobotsTxt: true,
   sitemapSize: 7000,
   changefreq: "daily",

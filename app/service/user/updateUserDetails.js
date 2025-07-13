@@ -3,13 +3,16 @@ export default async function updateUserDetails(formData) {
 
   try {
     // const response = await fetch(`${process.env.NEXT_APP_PRODUCTION_HOSTNAME}/api/user/create`, {
-    const response = await fetch(`http://localhost:3000/api/user/update`, {
-      method: "POST",
-      headers: {
-        "Content-type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    });
+    const response = await fetch(
+      `https://dummy-pi-two.vercel.app/api/user/update`,
+      {
+        method: "POST",
+        headers: {
+          "Content-type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      }
+    );
     const result = await response.json();
 
     if (!response.ok) {
