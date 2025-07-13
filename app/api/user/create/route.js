@@ -7,11 +7,32 @@ export async function POST(request) {
     const inputData = await request.json();
     console.log("📥 Incoming Data:", inputData);
 
+    // --------------------------
+    // 🧪 Validate required fields
+    // --------------------------
+    if (!inputData.clerk_id || !inputData.email || !inputData.name) {
+      console.error("❌ Missing required user fields:", {
+        clerk_id: inputData.clerk_id,
+        email: inputData.email,
+        name: inputData.name,
+      });
+
+      return NextResponse.json(
+        {
+          state: false,
+          error: "Missing required fields",
+          message: "clerk_id, email, and name are required",
+        },
+        { status: 400 }
+      );
+    }
+
     const uuid = generateUuid();
 
     // ----------------------------
     // 1. Add user to 'users' table
     // ----------------------------
+    console.log("🚀 Inserting user into Supabase...");
     const { data: userData, error: userError } = await supabase
       .from("users")
       .insert([
@@ -20,8 +41,8 @@ export async function POST(request) {
           name: inputData.name || "Unnamed User",
           clerk_id: inputData.clerk_id,
           username: inputData.username || "no-username",
-          email: inputData.email || null,
-          img_url: inputData.img_url || null,
+          email: inputData.email || "no@email.com",
+          img_url: inputData.img_url || "",
         },
       ])
       .select()
@@ -38,7 +59,7 @@ export async function POST(request) {
       return NextResponse.json(
         {
           state: false,
-          error: userError.message,
+          error: userError.message || "Unknown Supabase error",
           details: userError.details,
           hint: userError.hint,
           code: userError.code,
@@ -85,7 +106,7 @@ export async function POST(request) {
       );
     }
 
-    // ✅ Success response
+    // ✅ Success
     return NextResponse.json(
       {
         state: true,
