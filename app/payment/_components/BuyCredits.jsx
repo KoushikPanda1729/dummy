@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import axios from "axios";
-import { Coins, CheckCircle, CreditCard } from "lucide-react";
+import { motion } from "framer-motion";
+import { Coins, CheckCircle, CreditCard, Crown, Zap, Users, Sparkles, Star } from "lucide-react";
 import Modal from "@/components/Modal";
 import { useUser } from "@clerk/nextjs";
 import { PLAN_LIMITS } from "@/lib/utils/constants/plan";
@@ -12,8 +13,11 @@ const plans = [
   {
     name: "Free Plan",
     tagline: "Give AI interviews a try",
+    icon: Sparkles,
     credits: { monthly: 0, yearly: 0 },
     price: { monthly: 0, yearly: 0 },
+    gradient: "from-gray-100 to-gray-200",
+    borderColor: "border-gray-300",
     features: {
       monthly: [
         "5 Min Mock Interview",
@@ -36,8 +40,11 @@ const plans = [
   {
     name: "Basic Plan",
     tagline: "Kickstart your interview prep",
+    icon: Zap,
     credits: { monthly: 9000, yearly: 108000 },
     price: { monthly: 499, yearly: 4999 },
+    gradient: "from-blue-100 to-indigo-100",
+    borderColor: "border-blue-300",
     features: {
       monthly: [
         "150 Min Mock Interview",
@@ -62,8 +69,11 @@ const plans = [
   {
     name: "Professional Plan",
     tagline: "Best for regular practice",
+    icon: Crown,
     credits: { monthly: 27000, yearly: 324000 },
     price: { monthly: 1250, yearly: 14000 },
+    gradient: "from-purple-100 to-pink-100",
+    borderColor: "border-purple-300",
     features: {
       monthly: [
         "450 Min Mock Interview",
@@ -88,8 +98,11 @@ const plans = [
   {
     name: "Enterprise Plan",
     tagline: "For teams and organizations",
+    icon: Users,
     credits: { monthly: 120000, yearly: 1440000 },
     price: { monthly: 4999, yearly: 49999 },
+    gradient: "from-emerald-100 to-teal-100",
+    borderColor: "border-emerald-300",
     features: {
       monthly: [
         "2000 Min Mock Interview",
@@ -195,105 +208,171 @@ export default function BuyCredits() {
 
   return (
     <>
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <h2 className="text-4xl font-extrabold text-center text-gray-900 mb-2">
-          Choose your right plan!
-        </h2>
-        <p className="text-center text-gray-500 mb-8">
-          Select from best plans, ensuring a perfect match. Need more or less? Customize your subscription for a seamless fit!
-        </p>
-
-        {/* Billing Toggle */}
-        <div className="flex justify-center mb-10">
-          <div className="inline-flex bg-gray-100 rounded-full p-1">
-            <button
-              onClick={() => setSelectedCycle("monthly")}
-              className={`px-6 py-2 text-sm font-medium rounded-full transition ${selectedCycle === "monthly" ? "bg-[#462eb4] text-white" : "text-gray-700"}`}
-            >
-              Monthly
-            </button>
-            <button
-              onClick={() => setSelectedCycle("yearly")}
-              className={`px-6 py-2 text-sm font-medium rounded-full transition ${selectedCycle === "yearly" ? "bg-[#462eb4] text-white" : "text-gray-700"}`}
-            >
-              Yearly (Save 10%)
-            </button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-indigo-50">
+        <div className="max-w-6xl mx-auto px-6 py-16">
+          {/* Header */}
+          <div className="text-center mb-16">
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Choose Your Plan
+            </h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Select the plan that best fits your interview preparation needs
+            </p>
           </div>
-        </div>
 
-        {/* Plan Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {plans.map((plan) => {
-            const isSelected = selectedCredits === plan.credits[selectedCycle];
-            return (
-              <div
-                key={plan.name}
-                onClick={() =>
-                  handleSelection(plan.credits[selectedCycle], plan.price, selectedCycle)
-                }
-                className={`p-8 rounded-3xl shadow-xl border transition hover:shadow-2xl cursor-pointer bg-gradient-to-br from-white to-purple-50 ${isSelected ? "ring-4 ring-[#462eb4] border-transparent" : "border-gray-200"} ${plan.highlighted ? "bg-white ring-4 ring-yellow-300" : ""} ${plan.disabled ? "opacity-50 pointer-events-none select-none" : ""}`}
+          {/* Billing Toggle */}
+          <div className="flex justify-center mb-12">
+            <div className="inline-flex bg-gray-100 rounded-2xl p-1">
+              <button
+                onClick={() => setSelectedCycle("monthly")}
+                className={`px-8 py-3 text-sm font-medium rounded-xl transition-all duration-200 ${
+                  selectedCycle === "monthly" 
+                    ? "bg-indigo-600 text-white shadow-lg" 
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
               >
-                <div className="mb-4">
-                  <h3 className=" text-sm font-bold text-white bg-[#462eb4] px-3 py-1 inline-block rounded-md">
-                    {plan.name}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">{plan.tagline}</p>
-                </div>
-
-                <div className="flex items-center gap-2 mb-2 text-md font-semibold text-[#462eb4]">
-                  <Coins className="w-5 h-5 text-yellow-500" />
-                  {plan.credits[selectedCycle]} Credits
-                </div>
-
-                <p className="text-3xl font-bold text-gray-800 mb-6">
-                  ₹{plan.price[selectedCycle]} / {selectedCycle}
-                </p>
-
-                <ul className="text-sm space-y-2 mb-6">
-                  {plan.features[selectedCycle].map((f, idx) => (
-                    <li key={idx} className="flex items-center text-gray-700 gap-2">
-                      <CheckCircle className="text-green-500 w-4 h-4" /> {f}
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePayment();
-                  }}
-                  disabled={!isSelected || loading}
-                  className={`w-full mt-4 py-2 px-4 rounded-xl font-semibold text-white transition ${isSelected ? "bg-[#462eb4] hover:bg-indigo-700" : "bg-gray-300 cursor-not-allowed"}`}
-                >
-                  {loading && isSelected ? "Processing..." : "Pay Now"}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Modal */}
-        <Modal
-          isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
-          title="Interview Report"
-          width="max-w-lg"
-        >
-          <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex items-center gap-4 max-w-md mx-auto mt-10">
-            <div className="bg-indigo-100 text-indigo-600 p-3 rounded-full">
-              <CreditCard className="w-6 h-6" />
-            </div>
-            <div>
-              <h3 className="text-base font-semibold text-gray-800">
-                Payments Temporarily Unavailable
-              </h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Razorpay is currently validating our application. Payment options will be available soon. Until then, enjoy free credits on us 🎉
-              </p>
+                Monthly
+              </button>
+              <button
+                onClick={() => setSelectedCycle("yearly")}
+                className={`px-8 py-3 text-sm font-medium rounded-xl transition-all duration-200 flex items-center gap-2 ${
+                  selectedCycle === "yearly" 
+                    ? "bg-indigo-600 text-white shadow-lg" 
+                    : "text-gray-600 hover:text-gray-900"
+                }`}
+              >
+                Yearly
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-1 rounded-full">
+                  Save 10%
+                </span>
+              </button>
             </div>
           </div>
-        </Modal>
+
+          {/* Plan Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {plans.map((plan, index) => {
+              const isSelected = selectedCredits === plan.credits[selectedCycle];
+              const Icon = plan.icon;
+              
+              return (
+                <div
+                  key={plan.name}
+                  onClick={() =>
+                    handleSelection(plan.credits[selectedCycle], plan.price, selectedCycle)
+                  }
+                  className={`relative cursor-pointer transition-all duration-300 ${
+                    plan.disabled ? "opacity-50 pointer-events-none" : ""
+                  }`}
+                >
+                  {/* Popular Badge */}
+                  {plan.highlighted && (
+                    <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
+                      <span className="bg-indigo-600 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg">
+                        Most Popular
+                      </span>
+                    </div>
+                  )}
+
+                  <div
+                    className={`h-full p-8 rounded-2xl border-2 transition-all duration-300 bg-white hover:shadow-xl ${
+                      isSelected 
+                        ? "border-indigo-600 shadow-lg ring-4 ring-indigo-100" 
+                        : "border-gray-200 hover:border-indigo-300"
+                    } ${plan.highlighted ? "ring-2 ring-indigo-200" : ""}`}
+                  >
+                    {/* Header */}
+                    <div className="text-center mb-6">
+                      <div className={`w-16 h-16 mx-auto mb-4 rounded-2xl flex items-center justify-center shadow-lg ${
+                        isSelected || plan.highlighted
+                          ? "bg-gradient-to-br from-indigo-500 to-purple-600" 
+                          : "bg-gradient-to-br from-gray-400 to-gray-600"
+                      }`}>
+                        <Icon className="w-8 h-8 text-white" />
+                      </div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{plan.name}</h3>
+                      <p className="text-sm text-gray-600">{plan.tagline}</p>
+                    </div>
+
+                    {/* Price Display */}
+                    <div className="text-center mb-6">
+                      <div className="text-4xl font-bold text-gray-900 mb-1">
+                        ₹{plan.price[selectedCycle].toLocaleString()}
+                      </div>
+                      <div className="text-sm text-gray-500">per {selectedCycle}</div>
+                    </div>
+
+                    {/* Credits */}
+                    <div className="text-center mb-6">
+                      <div className="inline-flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full">
+                        <Coins className="w-4 h-4 text-yellow-600" />
+                        <span className="text-sm font-semibold text-gray-700">
+                          {plan.credits[selectedCycle].toLocaleString()} Credits
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Features */}
+                    <ul className="space-y-3 mb-8">
+                      {plan.features[selectedCycle].map((feature, idx) => (
+                        <li key={idx} className="flex items-start gap-3">
+                          <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" />
+                          <span className="text-sm text-gray-700 leading-relaxed">{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    {/* CTA Button */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handlePayment();
+                      }}
+                      disabled={!isSelected || loading}
+                      className={`w-full py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 ${
+                        isSelected
+                          ? "bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg"
+                          : "bg-gray-100 text-gray-400 cursor-not-allowed"
+                      }`}
+                    >
+                      {loading && isSelected ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Processing...
+                        </div>
+                      ) : (
+                        "Choose Plan"
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
+
+      {/* Modal */}
+      <Modal
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Interview Report"
+        width="max-w-lg"
+      >
+        <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-6 flex items-center gap-4 max-w-md mx-auto mt-10">
+          <div className="bg-indigo-100 text-indigo-600 p-3 rounded-full">
+            <CreditCard className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-gray-800">
+              Payments Temporarily Unavailable
+            </h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Razorpay is currently validating our application. Payment options will be available soon. Until then, enjoy free credits on us 🎉
+            </p>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

@@ -5,11 +5,8 @@ export default async function page({ params }) {
   const id = param?.id;
 
   return (
-    <>
-      <div className="px-26 pt-8">
-        <h3 className="text-xl font-semibold text-white">Report Card</h3>
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       <ReportComponent id={id} />
-    </>
+    </div>
   );
 }

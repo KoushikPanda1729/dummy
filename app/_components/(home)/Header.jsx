@@ -1,120 +1,242 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Menu, TriangleDashed, X } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Menu, X, ChevronDown, Home, CreditCard, LayoutDashboard, User, LogIn } from 'lucide-react';
 import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
-import Image from 'next/image';
-import logo from '../../../public/match-fox-5.jpg'
+import { motion, AnimatePresence } from 'framer-motion';
+import Logo from '@/components/Logo';
 
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
 
-
+  // Handle scroll effect
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
   };
 
+  const navigationLinks = [
+    { href: '/', label: 'Home', icon: Home },
+    { href: '/payment', label: 'Pricing', icon: CreditCard },
+  ];
+
+  const isActiveLink = (href) => {
+    if (href === '/') return pathname === '/';
+    return pathname.startsWith(href);
+  };
+
   return (
-    <nav className="text-gray-500">
-      <div className="bg-white max-w-4xl mx-auto px-4 sm:px-6 lg:px-4  rounded-full shadow">
-        <div className="flex items-center justify-between h-16">
-          {/* Mobile Menu Button */}
-          <div className="flex items-center sm:hidden">
-            <button
-              onClick={toggleMenu}
-              className="inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500"
+    <>
+      <motion.nav 
+        initial={{ y: -100 }}
+        animate={{ y: 0 }}
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled 
+            ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200/50' 
+            : 'bg-white/80 backdrop-blur-sm'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <motion.div 
+              whileHover={{ scale: 1.05 }}
+              className="flex-shrink-0"
             >
-              <span className="sr-only">Open main menu</span>
-              {isMenuOpen ? (
-                <X className="block h-6 w-6" />
-              ) : (
-                <Menu className="block h-6 w-6" />
-              )}
-            </button>
-          </div>
-
-          {/* Logo */}
-          <div className="flex-shrink-0 text-gray-700 flex items-center justify-center sm:justify-start flex-1 sm:flex-none">
-            <Link href="/" className="flex gap-2 items-center justify-center font-bold text-xl">
-              <Image src={logo} alt='logo' className='w-7 h-7 rounded-lg' />
-              <span className='text-indigo-900'>Hirenom</span>
-            </Link>
-          </div>
-
-          {/* Navigation Links (Desktop) */}
-          <div className="hidden sm:flex sm:items-center sm:justify-center flex-1">
-            <div className="flex items-center gap-6 text-sm">
-              <Link href="/" className="text-gray-700 transition hover:text-gray-700/75">
-                Home
+              <Link href="/" className="flex items-center">
+                <Logo size="md" showText={true} />
               </Link>
-              {/* <Link href="/" className="text-gray-700 transition hover:text-gray-700/75">
-                Explore
-              </Link> */}
-              <Link href="/payment" className="text-gray-700 transition hover:text-gray-700/75">
-                Payment
-              </Link>
+            </motion.div>
+
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-8">
+              {navigationLinks.map((link) => {
+                const Icon = link.icon;
+                const isActive = isActiveLink(link.href);
+                
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                      isActive
+                        ? 'text-indigo-600 bg-indigo-50'
+                        : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {link.label}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeIndicator"
+                        className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full"
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+              
               <SignedIn>
-                <Link href="/dashboard/candidate" className="text-gray-700 transition hover:text-gray-700/75">
+                <Link
+                  href="/dashboard/candidate"
+                  className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
+                    isActiveLink('/dashboard')
+                      ? 'text-indigo-600 bg-indigo-50'
+                      : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <LayoutDashboard className="w-4 h-4" />
                   Dashboard
+                  {isActiveLink('/dashboard') && (
+                    <motion.div
+                      layoutId="activeIndicator"
+                      className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-600 rounded-full"
+                    />
+                  )}
                 </Link>
               </SignedIn>
+            </div>
 
+            {/* Right Side - Auth */}
+            <div className="hidden md:flex items-center gap-4">
+              <SignedOut>
+                <SignInButton>
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-6 py-2 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    Sign In
+                  </motion.button>
+                </SignInButton>
+              </SignedOut>
+
+              <SignedIn>
+                <div className="flex items-center gap-3">
+                  <UserButton 
+                    appearance={{
+                      elements: {
+                        avatarBox: "w-10 h-10 rounded-xl shadow-lg hover:shadow-xl transition-shadow"
+                      }
+                    }}
+                  />
+                </div>
+              </SignedIn>
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={toggleMenu}
+                className="p-2 rounded-lg text-gray-700 hover:text-indigo-600 hover:bg-gray-100 transition-all duration-200"
+              >
+                <span className="sr-only">Open main menu</span>
+                {isMenuOpen ? (
+                  <X className="block h-6 w-6" />
+                ) : (
+                  <Menu className="block h-6 w-6" />
+                )}
+              </motion.button>
             </div>
           </div>
-
-          {/* Login Button (Right) */}
-          <SignedOut>
-            <SignInButton>
-              <Link
-                className="block rounded-full bg-gradient-to-br bg-[#462eb4] px-6 py-3 text-xs font-semibold text-gray-50  hover:text-neutral-100 transition hover:bg-purple-900"
-                href="#"
-              >
-                Login
-              </Link>
-            </SignInButton>
-          </SignedOut>
-
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
         </div>
-      </div>
 
-      {/* Mobile Menu */}
-      <div className={`${isMenuOpen ? 'block' : 'hidden'} sm:hidden`}>
-        <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-          <Link href="/home" className="block px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:bg-gray-700">
-            Home
-          </Link>
-          <Link href="/" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-700">
-            How It Works
-          </Link>
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {isMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.2 }}
+              className="md:hidden bg-white border-t border-gray-200"
+            >
+              <div className="px-4 py-6 space-y-2">
+                {navigationLinks.map((link) => {
+                  const Icon = link.icon;
+                  const isActive = isActiveLink(link.href);
+                  
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'text-indigo-600 bg-indigo-50'
+                          : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      {link.label}
+                    </Link>
+                  );
+                })}
+                
+                <SignedIn>
+                  <Link
+                    href="/dashboard/candidate"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl text-base font-medium transition-all duration-200 ${
+                      isActiveLink('/dashboard')
+                        ? 'text-indigo-600 bg-indigo-50'
+                        : 'text-gray-700 hover:text-indigo-600 hover:bg-gray-50'
+                    }`}
+                  >
+                    <LayoutDashboard className="w-5 h-5" />
+                    Dashboard
+                  </Link>
+                </SignedIn>
 
-          <SignedIn>
-            <Link href="/dashboard/candidate" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-700">
-              Dashboard
-            </Link>
-          </SignedIn>
+                <div className="pt-4 border-t border-gray-200">
+                  <SignedOut>
+                    <SignInButton>
+                      <button 
+                        onClick={() => setIsMenuOpen(false)}
+                        className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-3 rounded-xl font-medium shadow-lg"
+                      >
+                        <LogIn className="w-5 h-5" />
+                        Sign In
+                      </button>
+                    </SignInButton>
+                  </SignedOut>
 
-          <SignedIn>
-            <Link href="/payment" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-700">
-              Payment
-            </Link>
-          </SignedIn>
-
-          <SignedOut>
-            <SignInButton>
-              <Link href="/login" className="block px-3 py-2 rounded-md text-base font-medium text-gray-900 hover:bg-gray-700">
-                Login
-              </Link>
-            </SignInButton>
-          </SignedOut>
-        </div>
-      </div>
-    </nav>
+                  <SignedIn>
+                    <div className="flex items-center gap-3 px-4 py-2">
+                      <UserButton 
+                        appearance={{
+                          elements: {
+                            avatarBox: "w-8 h-8 rounded-lg"
+                          }
+                        }}
+                      />
+                      <span className="text-sm text-gray-600">Account</span>
+                    </div>
+                  </SignedIn>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.nav>
+      
+      {/* Spacer to prevent content from hiding behind fixed nav */}
+      <div className="h-16"></div>
+    </>
   );
 };
 

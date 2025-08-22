@@ -78,50 +78,51 @@ export default function Tabs({ content, code, reportDetails }) {
     <QuestionsWiseFeedback
       feedbackData={reportDetails?.interview_id?.questions}
     />,
-    <ChatComponent report={reportInString} chat={chat} setChat={setChat} />,
+    <ChatComponent report={reportInString} chat={chat} setChat={setChat} user={user} />,
 
     <OverallFeedbackSection feedback={reportDetails?.report_data} />,
     <QuestionsWiseFeedback
       feedbackData={reportDetails?.report_data?.Question_Wise_Feedback} // Changed to actual feedback data
       questions={reportDetails?.interview_id?.questions} // Pass questions separately if needed
     />,
-    <ChatComponent report={reportInString} chat={chat} setChat={setChat} />,
+    <ChatComponent report={reportInString} chat={chat} setChat={setChat} user={user} />,
   ];
 
   return (
-    <div className="w-full px-4 py-8">
-      <div className="max-w-4xl mx-auto px-6 py-6 shadow border border-gray-100 rounded-lg">
-        {/* Tabs */}
-        <div className="relative flex space-x-4 md:space-x-8 border-b border-gray-200 overflow-x-auto scrollbar-hide">
+    <div className="w-full">
+      {/* Simple Tab Navigation */}
+      <div className="border-b border-gray-200 bg-white">
+        <div className="flex justify-center lg:justify-start px-6">
           {tabs.map((tab, index) => (
             <button
               key={index}
               onClick={() => setActiveTab(index)}
-              className={`relative pb-3 text-sm md:text-sm cursor-pointer whitespace-nowrap transition-colors duration-300 ${
+              className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors duration-200 ${
                 activeTab === index
-                  ? "text-gray-800 font-semibold"
-                  : "text-gray-500 hover:text-gray-700"
+                  ? "border-indigo-600 text-indigo-600"
+                  : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
               }`}
             >
               {tab}
-              {activeTab === index && (
-                <motion.div
-                  className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-800"
-                  layoutId="underline"
-                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                />
-              )}
             </button>
           ))}
         </div>
+      </div>
 
-        {/* Tab Content */}
-        <div
+      {/* Simple Tab Content */}
+      <div className="relative">
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
           ref={contentRef}
-          className="relative z-0 px-4 md:px-6 py-6 text-gray-700 text-sm md:text-base space-y-4"
+          className="p-6 lg:p-8 bg-white min-h-96"
         >
-          {tabContents[activeTab]}
-        </div>
+          <div className="max-w-6xl mx-auto">
+            {tabContents[activeTab]}
+          </div>
+        </motion.div>
       </div>
     </div>
   );

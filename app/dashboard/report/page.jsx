@@ -283,41 +283,6 @@ export default function Page() {
                     interviewData={interviewData}
                     rawReportData={report}
                   />
-                  <AnimatePresence>
-                    {openModalIndex === index && (
-                      <Modal
-                        isOpen={openModalIndex === index}
-                        onClose={() => setOpenModalIndex(null)}
-                        width="max-w-4xl"
-                      >
-                        <motion.div
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: 20 }}
-                          transition={{ duration: 0.3, ease: "easeOut" }}
-                        >
-                          <AIReportCard
-                            id={report?.id}
-                            companyLogo={companyLogo}
-                            companyName={companyName}
-                            interviewTitle={interviewName}
-                            position={position}
-                            userName={user?.firstName}
-                            overallScore={report?.score}
-                            recommendation={
-                              report?.recommendation?.[0] === "true" ||
-                              !!report?.recommendation
-                            }
-                            Skill_Evaluation={report?.report?.Skill_Evaluation}
-                            summary={report?.report?.overall_summary}
-                            fullReport={report?.report}
-                            interviewData={interviewData}
-                            rawReportData={report}
-                          />
-                        </motion.div>
-                      </Modal>
-                    )}
-                  </AnimatePresence>
                 </div>
               );
             })}

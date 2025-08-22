@@ -18,8 +18,8 @@ const geistMono = Geist_Mono({
 
 
 export const metadata = {
-  title: "Hirenom – AI Mock Interview Platform",
-  description: "AI powered mock interview platform, resume builder & LinkedIn optimization.",
+  title: "Personal AI Interviewer – Smart Interview Practice Platform",
+  description: "AI-powered interview practice platform with personalized feedback, resume optimization, and career guidance.",
   robots: "index, follow", // ✅ This is the fix!
 };
 

@@ -9,8 +9,7 @@ import {
   User2
 } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
-import matchfox from '../../public/match-fox-5.jpg'
+import Logo from '@/components/Logo'
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false)
@@ -33,9 +32,9 @@ export default function Sidebar() {
         <button onClick={toggleSidebar}>
           <Menu className="w-6 h-6 text-gray-600" />
         </button>
-        <div className="flex items-center gap-1 text-lg text-indigo-900 font-semibold">
-          <Image src={matchfox} width={24} height={24} alt='logo' className='rounded-md' />
-          Hirenom
+        <div className="flex items-center">
+          <Logo size="sm" showText={false} />
+          <span className="ml-2 text-lg text-indigo-900 font-semibold">PAI</span>
         </div>
         <div className="w-6" />
       </div>
@@ -67,8 +66,8 @@ export default function Sidebar() {
             href="/"
             className="hidden md:flex items-center mt-1.5 pb-6 space-x-2 p-2 rounded"
           >
-            <Image src={matchfox} width={24} height={24} alt='logo' className="w-7 h-7 rounded-md" />
-            <span className='font-bold text-lg text-indigo-900'>Hirenom</span>
+            <Logo size="md" showText={false} />
+            <span className='font-bold text-lg text-indigo-900'>Personal AI Interviewer</span>
           </Link>
 
           {/* User Type Selector - Untitled UI style */}

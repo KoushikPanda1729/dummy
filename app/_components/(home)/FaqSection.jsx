@@ -6,9 +6,9 @@ import { ChevronDown } from "lucide-react";
 
 const faqs = [
   {
-    question: "What is Hirenom's AI Mock Interview platform?",
+    question: "What is Personal AI Interviewer's mock interview platform?",
     answer:
-      "Hirenom is an AI-powered platform that helps you prepare for job interviews through realistic mock sessions, personalized feedback, and smart analytics. It simulates real-world interviews using voice or video and evaluates your performance instantly.",
+      "Personal AI Interviewer is an AI-powered platform that helps you prepare for job interviews through realistic mock sessions, personalized feedback, and smart analytics. It simulates real-world interviews using voice or video and evaluates your performance instantly.",
   },
   {
     question: "How do AI mock interviews work?",
