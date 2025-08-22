@@ -1,73 +1,92 @@
-'use client'
+"use client";
 
-import { useState, useRef, useLayoutEffect } from 'react'
-import { motion } from 'framer-motion'
-import { useUser } from '@clerk/nextjs'
+import { useState, useRef, useLayoutEffect } from "react";
+import { motion } from "framer-motion";
+import { useUser } from "@clerk/nextjs";
 
-import InterviewSummary from '@/app/dashboard/report/_components/InterviewSummary'
-import OverallFeedbackSection from '@/app/dashboard/report/_components/OverallFeedbackSection'
-import QuestionsWiseFeedback from '@/app/dashboard/report/_components/QuestionsWiseFeedback'
-import ChatComponent from '@/app/dashboard/report/_components/ChatComponent'
+import InterviewSummary from "@/app/dashboard/report/_components/InterviewSummary";
+import OverallFeedbackSection from "@/app/dashboard/report/_components/OverallFeedbackSection";
+import QuestionsWiseFeedback from "@/app/dashboard/report/_components/QuestionsWiseFeedback";
+import ChatComponent from "@/app/dashboard/report/_components/ChatComponent";
 
-const tabs = ['Interview Summary', 'Overall Feedback', 'Questions', 'Interview Copilot']
+const tabs = [
+  "Interview Summary",
+  "Overall Feedback",
+  "Questions",
+  "Interview Copilot",
+];
 
 export default function Tabs({ content, code, reportDetails }) {
-  const [activeTab, setActiveTab] = useState(0)
-  const contentRef = useRef(null)
-  const [height, setHeight] = useState(0)
-  const { user } = useUser()
+  const [activeTab, setActiveTab] = useState(0);
+  const contentRef = useRef(null);
+  const [height, setHeight] = useState(0);
+  const { user } = useUser();
+
+  console.log("Report Details:", reportDetails);
 
   // Handle chat conversation
-  let finalConversation = []
+  let finalConversation = [];
   try {
-    const rawChat = reportDetails?.interview_attempts?.chat_conversation
-    if (typeof rawChat === 'string' && rawChat.trim()) {
-      const parsed = JSON.parse(rawChat)
+    const rawChat = reportDetails?.interview_attempts?.chat_conversation;
+    if (typeof rawChat === "string" && rawChat.trim()) {
+      const parsed = JSON.parse(rawChat);
       if (parsed && Array.isArray(parsed.current)) {
-        finalConversation = parsed.current.filter(msg => msg.role !== 'system')
+        finalConversation = parsed.current.filter(
+          (msg) => msg.role !== "system"
+        );
       }
     }
   } catch (err) {
     //console.error('❌ Failed to parse chat:', err)
   }
 
-  const [chat, setChat] = useState(finalConversation)
+  const [chat, setChat] = useState(finalConversation);
 
-  const reportInString = JSON.stringify(reportDetails?.report)
+  const reportInString = JSON.stringify(reportDetails?.report);
   const feedback = {
-    areasForImprovement: reportDetails?.report?.Areas_for_Improvement,
-    keyStrengths: reportDetails?.report?.Key_Strengths,
-    suggestedLearningResources: reportDetails?.report?.Suggested_Learning_Resources,
-    topicsToFocusOn: reportDetails?.report?.Topics_to_focus_on,
-  }
+    areasForImprovement: reportDetails?.report_data?.Areas_for_Improvement, // Changed path
+    keyStrengths: reportDetails?.report_data?.Key_Strengths, // Changed path
+    suggestedLearningResources:
+      reportDetails?.report_data?.Suggested_Learning_Resources, // Changed path
+    topicsToFocusOn: reportDetails?.report_data?.Topics_to_focus_on, // Changed path
+  };
 
   useLayoutEffect(() => {
     if (contentRef.current) {
-      setHeight(contentRef.current.scrollHeight)
+      setHeight(contentRef.current.scrollHeight);
     }
-  }, [activeTab])
+  }, [activeTab]);
 
   const tabContents = [
     <InterviewSummary
       id={reportDetails?.id}
       companyLogo={reportDetails?.interview_attempts?.interviews?.company_logo}
       companyName={reportDetails?.interview_attempts?.interviews?.company}
-      interviewTitle={reportDetails?.interview_attempts?.interviews?.interview_name}
+      interviewTitle={
+        reportDetails?.interview_attempts?.interviews?.interview_name
+      }
       position={reportDetails?.interview_attempts?.interviews?.position}
       userName={user?.firstName}
-      overallScore={reportDetails?.score}
-      recommendation={!!reportDetails?.recommendation}
-      Skill_Evaluation={reportDetails?.report?.Skill_Evaluation}
-      summary={reportDetails?.report?.overall_summary}
+      overallScore={reportDetails?.overall_score} // Changed from reportDetails?.score
+      recommendation={
+        reportDetails?.report_data?.final_verdict?.recommendation === "YES"
+      } // Updated logic
+      Skill_Evaluation={reportDetails?.report_data?.Skill_Evaluation} // Changed from reportDetails?.report?.Skill_Evaluation
+      summary={reportDetails?.report_data?.overall_summary} // Changed from reportDetails?.report?.overall_summary
     />,
-    <OverallFeedbackSection feedback={feedback} />,
-    <QuestionsWiseFeedback feedbackData={reportDetails?.report?.Question_Wise_Feedback} />,
-    <ChatComponent
-      report={reportInString}
-      chat={chat}
-      setChat={setChat}
+    <OverallFeedbackSection feedback={reportDetails?.report_data} />,
+    <QuestionsWiseFeedback
+      feedbackData={reportDetails?.interview_id?.questions}
     />,
-  ]
+    <ChatComponent report={reportInString} chat={chat} setChat={setChat} />,
+
+    <OverallFeedbackSection feedback={reportDetails?.report_data} />,
+    <QuestionsWiseFeedback
+      feedbackData={reportDetails?.report_data?.Question_Wise_Feedback} // Changed to actual feedback data
+      questions={reportDetails?.interview_id?.questions} // Pass questions separately if needed
+    />,
+    <ChatComponent report={reportInString} chat={chat} setChat={setChat} />,
+  ];
 
   return (
     <div className="w-full px-4 py-8">
@@ -80,8 +99,8 @@ export default function Tabs({ content, code, reportDetails }) {
               onClick={() => setActiveTab(index)}
               className={`relative pb-3 text-sm md:text-sm cursor-pointer whitespace-nowrap transition-colors duration-300 ${
                 activeTab === index
-                  ? 'text-gray-800 font-semibold'
-                  : 'text-gray-500 hover:text-gray-700'
+                  ? "text-gray-800 font-semibold"
+                  : "text-gray-500 hover:text-gray-700"
               }`}
             >
               {tab}
@@ -89,7 +108,7 @@ export default function Tabs({ content, code, reportDetails }) {
                 <motion.div
                   className="absolute bottom-0 left-0 right-0 h-[2px] bg-gray-800"
                   layoutId="underline"
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 30 }}
                 />
               )}
             </button>
@@ -105,5 +124,5 @@ export default function Tabs({ content, code, reportDetails }) {
         </div>
       </div>
     </div>
-  )
+  );
 }

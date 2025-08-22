@@ -31,7 +31,15 @@ export default async function createInterviewFromAPI(formData, questions, colleg
 
     const result = await response.json();
 
+    console.log('📨 Frontend received response from create-interview API:');
+    console.log('   - result.state:', result?.state);
+    console.log('   - result.data:', result?.data);
+    console.log('   - result.data.id:', result?.data?.id);
+    console.log('   - result.data._id:', result?.data?._id);
+    console.log('   - result.message:', result?.message);
+
     if (!result?.data) {
+      console.log('❌ No data in response, returning failure');
       return {
         state: false,
         error: 'Failed to create Interview',
@@ -39,6 +47,7 @@ export default async function createInterviewFromAPI(formData, questions, colleg
       };
     }
 
+    console.log('✅ Frontend returning success with data.id:', result.data.id);
     return {
       state: true,
       data: result.data,

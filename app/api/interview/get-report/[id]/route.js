@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Report from '@/lib/mongodb/models/Report';
+import InterviewAttempt from '@/lib/mongodb/models/InterviewAttempt';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
 
 export async function GET(req, context) {
   try {
+    await dbConnect();
+    
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
     const { success } = await ratelimit.limit(ip);
@@ -27,66 +32,84 @@ export async function GET(req, context) {
       return NextResponse.json({ state: false, error: 'Unauthorized', message: "Failed" }, { status: 401 });
     }
 
-    // Step 3: Verify the user exists in Supabase "users" table
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('clerk_id', userId)
-      .single();
+    // Step 3: Verify the user exists in MongoDB "users" collection
+    const userRecord = await User.findOne({ clerk_id: userId });
 
-    if (userError || !userRecord) {
+    if (!userRecord) {
       return NextResponse.json({ state: false, error: 'User not found in database', message: "Failed" }, { status: 403 });
     }
 
-    // Step 5: Insert new attempt    
-    const { data, error } = await supabase
-      .from('ai_reports')
-      .select(`
-            id,
-            recommendation,
-            score,
-            report,
-            created_at,
-            interview_attempts (
-                id,
-                started_at,
-                completed_at,
-                status,
-                chat_conversation,
-                interview_attempt,
-                interview_id,
-                user_id,
-                interviews (
-                    id,
-                    interview_name,
-                    interview_time,
-                    company,
-                    company_logo,
-                    status,
-                    duration,
-                    position,
-                    location,
-                    interview_style,
-                    job_description,
-                    interview_link,
-                    expiry_date,
-                    interview_type,
-                    created_date
-                )
-            )
-        `)
-      .eq('interview_attempts.user_id', userId)
-      .eq('id', reportId)
-      .order('created_at', { ascending: false })
-      .single();
+    // Step 5: Fetch report with populated interview data (handle null interview_attempt_id)
+    const report = await Report.findById(reportId)
+      .populate({
+        path: 'interview_attempt_id',
+        populate: {
+          path: 'interview_id',
+          model: 'Interview'
+        }
+      })
+      .populate({
+        path: 'interview_id',
+        model: 'Interview'
+      });
 
-    console.log(error)
+    console.log("📊 Found report:", !!report);
+    console.log("📊 Report user_id:", report?.user_id);
+    console.log("📊 Report interview_attempt_id:", report?.interview_attempt_id);
+    console.log("📊 Report interview_id:", report?.interview_id);
 
-    if (error) {
-      return NextResponse.json({ state: false, error: 'Insert failed', message: "Failed" }, { status: 500 });
+    if (!report) {
+      return NextResponse.json({ state: false, error: 'Report not found', message: "Failed" }, { status: 404 });
     }
 
-    return NextResponse.json({ state: true, data: data, message: "Success" }, { status: 200 });
+    // Verify the report belongs to the current user
+    if (report.user_id !== userId) {
+      return NextResponse.json({ state: false, error: 'Unauthorized access to report', message: "Failed" }, { status: 403 });
+    }
+
+    // Transform the data to match the expected frontend format
+    const transformedReport = {
+      ...report.toObject(),
+      id: report._id.toString(),
+      interview_attempts: report.interview_attempt_id ? {
+        id: report.interview_attempt_id._id.toString(),
+        started_at: report.interview_attempt_id.started_at,
+        completed_at: report.interview_attempt_id.updatedAt,
+        status: report.interview_attempt_id.status,
+        interview_attempt: report.interview_attempt_id.interview_attempt,
+        chat_conversation: report.interview_attempt_id.chat_conversation,
+        interviews: report.interview_attempt_id.interview_id ? {
+          id: report.interview_attempt_id.interview_id._id.toString(),
+          interview_name: report.interview_attempt_id.interview_id.interview_name,
+          company: report.interview_attempt_id.interview_id.company,
+          company_logo: report.interview_attempt_id.interview_id.company_logo,
+          position: report.interview_attempt_id.interview_id.position,
+          interview_time: report.interview_attempt_id.interview_id.interview_time,
+          duration: report.interview_attempt_id.interview_id.duration,
+          status: report.interview_attempt_id.interview_id.status
+        } : null
+      } : {
+        // Handle reports with null interview_attempt_id
+        id: null,
+        started_at: null,
+        completed_at: null,
+        status: 'incomplete',
+        interview_attempt: null,
+        chat_conversation: null,
+        interviews: report.interview_id ? {
+          id: report.interview_id._id.toString(),
+          interview_name: report.interview_id.interview_name,
+          company: report.interview_id.company,
+          company_logo: report.interview_id.company_logo,
+          position: report.interview_id.position,
+          interview_time: report.interview_id.interview_time,
+          duration: report.interview_id.duration,
+          status: report.interview_id.status
+        } : null
+      }
+    };
+
+    return NextResponse.json({ state: true, data: transformedReport, message: "Success" }, { status: 200 });
 
   } catch (err) {
     console.error('Unexpected error:', err);

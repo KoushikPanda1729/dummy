@@ -123,6 +123,7 @@ export default function VideoCallUI({
 
       const generatedReport = await handleGenerateReport();
       if (!generatedReport?.status || !generatedReport?.data) {
+        console.error("❌ Report generation failed, skipping save");
         return;
       }
 
@@ -144,28 +145,46 @@ export default function VideoCallUI({
       );
 
       if (!submitAttempt?.state || !submitAttempt?.data?.id) {
-        toast.error("❌ Failed to submit the attempt");
-        return;
+        console.error("❌ Failed to submit attempt, but will still try to save report");
+        // Don't return here - still try to save the report without attempt ID
+        var attemptId = null;
+      } else {
+        var attemptId = submitAttempt.data.id;
       }
 
+      console.log("🔍 About to parse generated report data:", generatedReport.data);
       const parsedResult = parseGeneratedReport(generatedReport.data);
+      console.log("🔍 Parsed result:", parsedResult);
       if (!parsedResult) {
+        console.error("❌ Failed to parse report - parsedResult is null/undefined");
         toast.error("❌ Failed to parse report");
         return;
       }
 
       const { score, recommendation } = extractScoreAndRecommendation(parsedResult);
+      console.log("🔍 Extracted score and recommendation:", { score, recommendation });
+
+      console.log("🔍 About to save report with params:", {
+        interviewId,
+        interview_attempt_id: attemptId,
+        score,
+        recommendation,
+        callTime
+      });
 
       const saveReport = await saveInterviewReport(
         interviewId,
-        submitAttempt.data.id,
+        attemptId,
         score,
         recommendation,
         parsedResult,
         callTime
       );
 
+      console.log("🔍 Save report result:", saveReport);
+
       if (!saveReport?.state) {
+        console.error("❌ Failed to save report:", saveReport);
         toast.error("Failed to save report");
         return;
       }

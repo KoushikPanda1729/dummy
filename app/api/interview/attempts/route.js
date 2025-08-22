@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Interview from '@/lib/mongodb/models/Interview';
+import InterviewAttempt from '@/lib/mongodb/models/InterviewAttempt';
 import { isRateLimited } from '@/lib/utils/rateLimiter';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
@@ -8,6 +11,8 @@ import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
 export async function GET(req) {
     try {
+        await dbConnect();
+        
         const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
         const { success } = await ratelimit.limit(ip);
@@ -33,56 +38,23 @@ export async function GET(req) {
             return NextResponse.json({ state: false, error: 'Unauthorized', message: 'User not authenticated' }, { status: 401 });
         }
 
-        // 3. Validate user exists in Supabase
-        const { data: userRecord, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('clerk_id', userId)
-            .single();
+        // 3. Validate user exists in MongoDB
+        const userRecord = await User.findOne({ clerk_id: userId });
 
-        if (userError || !userRecord) {
+        if (!userRecord) {
             return NextResponse.json({ state: false, error: 'User not found in database', message: 'Forbidden' }, { status: 403 });
         }
 
-        // 5. Get interview attempts data
+        // 5. Get interview attempts data with populated interview details
+        const data = await InterviewAttempt.find({ user_id: userId })
+            .populate({
+                path: 'interview_id',
+                model: 'Interview',
+                select: 'interview_name interview_time company company_logo position location difficulty_level experience status duration interview_style job_description interview_link expiry_date salary recruiter_title employment_type job_type type current_duration'
+            })
+            .sort({ createdAt: -1 }); // Sort by latest
 
-        const { data, error } = await supabase
-            .from("interview_attempts")
-            .select(`
-                *,
-                interviews (
-                interview_name,
-                interview_time,
-                company,
-                company_logo,
-                position,
-                location,
-                difficulty_level,
-                experience,
-                status,
-                duration,
-                interview_style,
-                job_description,
-                interview_link,
-                expiry_date,
-                salary,
-                recruiter_title,
-                employment_type,
-                job_type,
-                type,
-                current_duration
-                )
-            `)
-            .eq("user_id", userId) // Replace userId with actual Clerk user ID
-            .order("created_at", { ascending: false }); // Sort by latest
-
-
-            if (error) {
-                console.error("Error fetching interview attempts:", error);
-            } else {
-                console.log("Interview Attempts with Details:", data);
-            }
-
+        console.log("Interview Attempts with Details:", data);
 
         // 6. Success
         return NextResponse.json({ state: true, data, message: 'Updated Successfully' }, { status: 201 });

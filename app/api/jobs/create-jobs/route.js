@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Interview from '@/lib/mongodb/models/Interview';
 import { isRateLimited } from '@/lib/utils/rateLimiter';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
@@ -30,14 +32,12 @@ export async function POST(req) {
         return NextResponse.json({ state: false, error: 'Unauthorized', message: 'User not authenticated' }, { status: 401 });
     }
 
-    // 3. Validate user exists in Supabase
-    const { data: userRecord, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('clerk_id', userId)
-        .single();
+    await dbConnect();
 
-    if (userError || !userRecord) {
+    // 3. Validate user exists in MongoDB
+    const userRecord = await User.findOne({ clerk_id: userId });
+
+    if (!userRecord) {
         return NextResponse.json({ state: false, error: 'User not found in database', message: 'Forbidden' }, { status: 403 });
     }
 

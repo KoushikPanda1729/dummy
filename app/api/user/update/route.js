@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 import { currentUser } from '@clerk/nextjs/server';
 
 export async function POST(request) {
   try {
+    await dbConnect();
+    
     const ip = request.headers.get('x-forwarded-for') || 'anonymous';
     
     const { success } = await ratelimit.limit(ip);
@@ -14,53 +17,40 @@ export async function POST(request) {
     }
 
     // 2. Authenticated user
-        const user = await currentUser();
+    const user = await currentUser();
 
-        console.log("************** user ********")
-        console.log(user)
+    console.log("************** user ********")
+    console.log(user)
 
-        const userId = user?.id;
+    const userId = user?.id;
 
-        if (!userId) {
-            return NextResponse.json({ state: false, error: 'Unauthorized', message: 'User not authenticated' }, { status: 401 });
-        }
+    if (!userId) {
+        return NextResponse.json({ state: false, error: 'Unauthorized', message: 'User not authenticated' }, { status: 401 });
+    }
 
-        // 3. Validate user exists in Supabase
-        const { data: userRecord, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('clerk_id', userId)
-            .single();
+    // 3. Validate user exists in MongoDB
+    const userRecord = await User.findOne({ clerk_id: userId });
 
-        if (userError || !userRecord) {
-            return NextResponse.json({ state: false, error: 'User not found in database', message: 'Forbidden' }, { status: 403 });
-        }
+    if (!userRecord) {
+        return NextResponse.json({ state: false, error: 'User not found in database', message: 'Forbidden' }, { status: 403 });
+    }
 
     const inputData = await request.json();
     console.log('Incoming Data:', inputData);
 
       
-const { data: updateData, error: updateError } = await supabase
-  .from('users')
-  .update(
-    {   "designation": inputData?.designation || 'Not available',
-        "social_accounts": inputData?.social_accounts || 'Not available',
-        "personal_info": inputData?.personal_info || 'Not available',
-        "work_type": inputData?.work_type || 'Not available',
-        "career_status": inputData?.career_status || 'Not available',
-        "experience": inputData?.experience || 'Not available',
-    })
-  .eq('clerk_id', userId)
-  .select()
-          
-
-    if (updateError) {
-      console.error('Supabase User update Error:', updateError);
-      return NextResponse.json(
-        { state: false, error: updateError.message, message: 'Failed to insert user' },
-        { status: 500 }
-      );
-    }
+const updateData = await User.findOneAndUpdate(
+  { clerk_id: userId },
+  {
+    designation: inputData?.designation || 'Not available',
+    social_accounts: inputData?.social_accounts || 'Not available',
+    personal_info: inputData?.personal_info || 'Not available',
+    work_type: inputData?.work_type || 'Not available',
+    career_status: inputData?.career_status || 'Not available',
+    experience: inputData?.experience || 'Not available'
+  },
+  { new: true }
+);
 
     return NextResponse.json(
       {

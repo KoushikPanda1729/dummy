@@ -1,49 +1,44 @@
 // app/api/interviews/[id]/route.ts
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Usage from '@/lib/mongodb/models/Usage';
 import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { ensureUserExists } from '@/lib/utils/ensureUser';
 
 export async function GET(req) {
   try {
+    await dbConnect();
 
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
-  const { success } = await ratelimit.limit(ip);
+    const { success } = await ratelimit.limit(ip);
 
-  if (!success) {
-    return NextResponse.json({ state: false, error: 'Rate limit exceeded' }, { status: 429 });
-  }
+    if (!success) {
+      return NextResponse.json({ state: false, error: 'Rate limit exceeded' }, { status: 429 });
+    }
 
     // Step 1: Get authenticated Clerk user
-  const user = await currentUser();
-  const userId = user?.id;
+    const user = await currentUser();
+    const userId = user?.id;
 
-  if (!userId) {a
-    return NextResponse.json({ state: true, error: 'Unauthorized', message: "Failed" }, { status: 401 });
-  }
+    if (!userId) {
+      return NextResponse.json({ state: true, error: 'Unauthorized', message: "Failed" }, { status: 401 });
+    }
 
-  // Step 2: Verify the user exists in the Supabase "users" table
-  const { data: userRecord, error: userError } = await supabase
-    .from('users')
-    .select('*')
-    .eq('clerk_id', userId)
-    .single();
+    // Step 2: Ensure user exists in MongoDB (auto-create if needed)
+    try {
+      await ensureUserExists(user);
+    } catch (error) {
+      console.error('Failed to ensure user exists:', error);
+      return NextResponse.json({ state: false, error: 'Failed to initialize user', message: "Failed" }, { status: 500 });
+    }
 
-  if (userError || !userRecord) {
-    return NextResponse.json({ state: true, error: 'User not found in database', message: "Failed" }, { status: 403 });
-  }
+    // Fetch usage data
+    const usageData = await Usage.findOne({ user_id: userId });
 
-    // Fetch interview
-    const { data: usageData, error } = await supabase
-      .from('usage')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    console.log(error)
-
-    if (error) {
+    if (!usageData) {
       return NextResponse.json({ state: false, error: 'Not enough Credits or access denied', message: "Failed" }, { status: 404 });
     }
 

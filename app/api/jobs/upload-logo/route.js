@@ -1,42 +1,43 @@
-import supabase from "@/lib/supabase/client";
+import dbConnect from '@/lib/mongodb/mongoose';
 import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
-  const formData = await req.formData();
-  const file = formData.get('file');
+  try {
+    await dbConnect();
+    
+    const formData = await req.formData();
+    const file = formData.get('file');
 
-  if (!file) {
-    return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
-  }
+    if (!file) {
+      return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });
+    }
 
-  const allowedTypes = ['image/png', 'image/jpeg'];
-  const maxSize = 2 * 1024 * 1024; // ✅ 2MB
+    const allowedTypes = ['image/png', 'image/jpeg'];
+    const maxSize = 2 * 1024 * 1024; // ✅ 2MB
 
-  if (!allowedTypes.includes(file.type)) {
-    return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
-  }
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Invalid file type' }, { status: 400 });
+    }
 
-  if (file.size > maxSize) {
-    return NextResponse.json({ error: 'File too large (max 2MB)' }, { status: 400 });
-  }
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: 'File too large (max 2MB)' }, { status: 400 });
+    }
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const filename = `logos/${nanoid()}-${file.name}`;
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const base64Data = buffer.toString('base64');
+    const filename = `logos/${nanoid()}-${file.name}`;
+    
+    // For now, return a data URL. In production, you should use proper file storage
+    // like AWS S3, Cloudinary, or similar service
+    const dataUrl = `data:${file.type};base64,${base64Data}`;
 
-  const { error } = await supabase.storage
-    .from('logos')
-    .upload(filename, buffer, {
-      contentType: file.type,
-      upsert: false,
-    });
+    // TODO: Replace with proper file storage service
+    console.log(`Logo uploaded: ${filename}, size: ${buffer.length} bytes`);
 
-  if (error) {
-    console.error("Supabase upload error:", error);
+    return NextResponse.json({ url: dataUrl }, { status: 200 });
+  } catch (error) {
+    console.error("Upload error:", error);
     return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
-
-  const { data: publicURL } = supabase.storage.from('logos').getPublicUrl(filename);
-
-  return NextResponse.json({ url: publicURL.publicUrl }, { status: 200 });
 }

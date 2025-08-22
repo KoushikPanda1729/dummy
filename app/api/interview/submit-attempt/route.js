@@ -1,17 +1,22 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Interview from '@/lib/mongodb/models/Interview';
+import InterviewAttempt from '@/lib/mongodb/models/InterviewAttempt';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
 export async function POST(req) {
   try {
+    await dbConnect();
+    
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
         
-          const { success } = await ratelimit.limit(ip);
+    const { success } = await ratelimit.limit(ip);
         
-          if (!success) {
-            return NextResponse.json({ state: false, error: 'Rate limit exceeded' }, { status: 429 });
-          }
+    if (!success) {
+      return NextResponse.json({ state: false, error: 'Rate limit exceeded' }, { status: 429 });
+    }
 
     // Step 1: Get authenticated Clerk user
     const user = await currentUser();
@@ -30,55 +35,37 @@ export async function POST(req) {
       return NextResponse.json({ state: false, error: 'Missing status or interview_id, user_id, started_at', message: 'Failed' }, { status: 400 });
     }
 
-    // Step 3: Verify the user exists in Supabase "users" table
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('clerk_id', userId)
-      .single();
+    // Step 3: Verify the user exists in MongoDB "users" collection
+    const userRecord = await User.findOne({ clerk_id: userId });
 
-    if (userError || !userRecord) {
+    if (!userRecord) {
       return NextResponse.json({ state: false, error: 'User not found in database', message: "Failed" }, { status: 403 });
     }
 
     // Step 5: Insert new attempt
-    const { data: inserted, error: insertError } = await supabase
-      .from('interview_attempts')
-      .insert([
-        { 
-          user_id: userId,
-          interview_id: interview_id,
-          started_at: started_at,
-          interview_attempt: true,
-          status: status,
-          chat_conversation: chat_conversation
-        }
-      ])
-      .select()
-      .single()
+    const inserted = new InterviewAttempt({
+      user_id: userId,
+      interview_id: interview_id,
+      started_at: started_at,
+      interview_attempt: true,
+      status: status,
+      chat_conversation: chat_conversation
+    });
 
-    console.log(insertError)
-
-    if (insertError) {
-      return NextResponse.json({ state: false, error: 'Insert failed', message: "Failed" }, { status: 500 });
-    }
+    const savedAttempt = await inserted.save();
 
     // update in the interviews table also
-    
-    const { data, error: updateError } = await supabase
-      .from('interviews')
-      .update({ status: status })
-      .eq('id', interview_id)
-      .select()
+    const updatedInterview = await Interview.findByIdAndUpdate(
+      interview_id,
+      { status: status },
+      { new: true }
+    );
 
-    console.log(updateError)
-
-    if (updateError) {
+    if (!updatedInterview) {
       return NextResponse.json({ state: false, error: 'Update failed in interviews table', message: "Failed" }, { status: 500 });
     }
-          
 
-    return NextResponse.json({ state: true, data: inserted, message: "Success" }, { status: 200 });
+    return NextResponse.json({ state: true, data: savedAttempt, message: "Success" }, { status: 200 });
 
   } catch (err) {
     console.error('Unexpected error:', err);

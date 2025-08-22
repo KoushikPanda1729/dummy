@@ -1,6 +1,8 @@
 // app/api/upload/route.ts
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Resume from '@/lib/mongodb/models/Resume';
 import { isRateLimited } from '@/lib/utils/rateLimiter';
 import { currentUser } from '@clerk/nextjs/server';
 import { NextRequest, NextResponse } from 'next/server'
@@ -32,14 +34,11 @@ export async function POST(req) {
         return NextResponse.json({ state: false, error: 'Unauthorized', message: 'User not authenticated' }, { status: 401 });
     }
 
-    // 3. Validate user exists in Supabase
-    const { data: userRecord, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('clerk_id', userId)
-        .single();
+    // 3. Validate user exists in MongoDB
+    await dbConnect();
+    const userRecord = await User.findOne({ clerk_id: userId });
 
-    if (userError || !userRecord) {
+    if (!userRecord) {
         return NextResponse.json({ state: false, error: 'User not found in database', message: 'Forbidden' }, { status: 403 });
     }
     const formData = await req.formData()
@@ -53,51 +52,32 @@ export async function POST(req) {
     }
 
     const fileExt = file.name.split('.').pop()
-    const filePath = `resumes/${crypto.randomUUID()}.${fileExt}`
+    const fileName = `${crypto.randomUUID()}.${fileExt}`
+    const filePath = `resumes/${fileName}`
 
-    // Upload to Supabase Storage
-    const { data: storageData, error: storageError } = await supabase.storage
-        .from('resumes')
-        .upload(filePath, file, {
-            contentType: file.type,
-            upsert: true
-        })
+    // For now, store file content as base64 in database
+    // In production, you might want to use AWS S3, Cloudinary, or similar service
+    const fileBuffer = Buffer.from(await file.arrayBuffer())
+    const fileBase64 = fileBuffer.toString('base64')
+    
+    // Create a mock URL for the file (you can replace this with actual storage service URL)
+    const fileUrl = `${process.env.NEXT_APP_HOSTNAME}/api/resume/file/${fileName}`
 
-    if (storageError) {
-        console.log("storageError Error:", storageError.message)
-        return NextResponse.json({ state: false, error: storageError.message, message: 'Failed' }, { status: 500 });
+    // Insert metadata into 'resumes' collection
+    try {
+        const resume = new Resume({
+            clerk_id: clerkId,
+            file_name: file.name,
+            file_url: fileUrl,
+            file_type: file.type,
+            parsed_successfully: false,
+            file_content: fileBase64 // Store file content in database for now
+        });
 
-    }
-
-    // Generate signed URL for private file
-    const { data: signedUrlData, error: signedUrlError } = await supabase
-        .storage
-        .from('resumes')
-        .createSignedUrl(filePath, 60 * 60 * 24 * 7); // 7 days
-
-
-    if (signedUrlError) {
-        return NextResponse.json({ state: false, error: signedUrlError.message }, { status: 500 });
-    }
-
-    const fileUrl = signedUrlData.signedUrl;
-
-
-    //const fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/resumes/${filePath}`
-
-    // Insert metadata into 'resumes' table
-    const { error: dbError } = await supabase.from('resumes').insert({
-        clerk_id: clerkId,
-        file_name: file.name,
-        file_url: fileUrl,
-        file_type: file.type,
-        parsed_successfully: false
-    })
-
-    if (dbError) {
+        await resume.save();
+    } catch (dbError) {
         console.log("DB Error:", dbError.message)
         return NextResponse.json({ state: false, error: dbError.message, message: 'Failed' }, { status: 500 });
-
     }
 
     return NextResponse.json({ state: true, data: 'Resume uploaded successfully!', message: 'Success' }, { status: 201 });

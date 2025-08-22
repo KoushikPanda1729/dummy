@@ -91,7 +91,9 @@ export default function SubCategoryPage({ params }) {
     
           if (createResult.state) {
             console.log("Interview created successfully:", createResult);
-            setInterviewData(createResult?.data[0])
+            console.log("Setting interviewData to:", createResult?.data);
+            console.log("Interview ID:", createResult?.data?.id);
+            setInterviewData(createResult?.data)  // Fixed: Remove [0] since data is not an array
             setOpen(true); // Trigger success modal or state
           }
         } catch (error) {
@@ -138,6 +140,9 @@ export default function SubCategoryPage({ params }) {
 
   const handleStartInterview = async () => {
     setLoadingStart(true);
+    console.log("🚀 [Subcategory] Starting interview with interviewData:", interviewData);
+    console.log("🚀 [Subcategory] Interview ID for navigation:", interviewData?.id);
+    console.log("🚀 [Subcategory] Navigating to:", `/dashboard/meetings/${interviewData?.id}`);
     await router.push(`/dashboard/meetings/${interviewData?.id}`);
   };
 

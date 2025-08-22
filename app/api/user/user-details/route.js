@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
  
 export async function GET(req, context) {
   try {
+    await dbConnect();
+    
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
     const { success } = await ratelimit.limit(ip);
@@ -27,17 +30,12 @@ export async function GET(req, context) {
       return NextResponse.json({ state: false, error: 'Unauthorized', message: "Failed" }, { status: 401 });
     }
 
-    // Step 3: Verify the user exists in Supabase "users" table and get data
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('clerk_id', userId)
-      .single();
+    // Step 3: Verify the user exists in MongoDB "users" collection and get data
+    const userRecord = await User.findOne({ clerk_id: userId });
 
-    console.log("usererror", userError);
     console.log("userRecord", userRecord);
 
-    if (userError || !userRecord) {
+    if (!userRecord) {
       return NextResponse.json({ state: false, error: 'User not found in database', message: "Failed" }, { status: 403 });
     }
 

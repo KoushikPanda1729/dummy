@@ -10,6 +10,11 @@ import { UsageContext } from "@/app/context/usageContext";
 import InterviewCallComponent from "./InterviewCallComponent";
 
 export default function InterviewPage({ interviewId }) {
+  console.log('🎬 InterviewPage component loaded with interviewId:', interviewId);
+  console.log('🔍 typeof interviewId:', typeof interviewId);
+  console.log('🔍 interviewId === undefined:', interviewId === undefined);
+  console.log('🔍 interviewId === "undefined":', interviewId === "undefined");
+  
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [interviewAccess, setInterviewAccess] = useState(false);
@@ -28,11 +33,22 @@ export default function InterviewPage({ interviewId }) {
   async function validateUser() {
       if (!user?.id) return;
 
+      console.log('🔄 validateUser called with interviewId:', interviewId);
+      
+      // Check if interviewId is valid before making API call
+      if (!interviewId || interviewId === 'undefined' || interviewId === undefined) {
+        console.log('❌ Invalid interviewId, cannot validate interview');
+        setError('Invalid interview ID');
+        setLoading(false);
+        return;
+      }
+
       try {
         setLoadingMessage("Fetching Interview Details...");
+        console.log('🌐 Making API call to:', `/api/interview/validate/${interviewId}`);
         const response = await fetch(`/api/interview/validate/${interviewId}`)
         const result = await response.json();
-        // console.log('Validation result:', result);
+        console.log('📨 Validation API response:', result);
 
                 toast.success("Interview details loaded");
 

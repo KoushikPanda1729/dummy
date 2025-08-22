@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Usage from '@/lib/mongodb/models/Usage';
 import { isRateLimited } from '@/lib/utils/rateLimiter';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 import generateUuid from '@/lib/utils/generateUuid';
@@ -8,8 +10,9 @@ import generateUuid from '@/lib/utils/generateUuid';
 
 
 export async function POST(req) {
-    const uuid = generateUuid();
     try {
+        await dbConnect();
+        
         const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
         const { success } = await ratelimit.limit(ip);
@@ -35,41 +38,24 @@ export async function POST(req) {
             return NextResponse.json({ state: false, error: 'Unauthorized', message: 'User not authenticated' }, { status: 401 });
         }
 
-        // 3. Validate user exists in Supabase
-        const { data: userRecord, error: userError } = await supabase
-            .from('users')
-            .select('*')
-            .eq('clerk_id', userId)
-            .single();
+        // 3. Validate user exists in MongoDB
+        const userRecord = await User.findOne({ clerk_id: userId });
 
-        if (userError || !userRecord) {
+        if (!userRecord) {
             return NextResponse.json({ state: false, error: 'User not found in database', message: 'Forbidden' }, { status: 403 });
         }
 
-        // 5. Insert interview data
+        // 5. Insert usage data
+        const usage = new Usage({
+            user_id: userId,
+            remaining_minutes: 300,
+            last_reset: new Date()
+        });
 
-        const { data, error } = await supabase
-            .from('usage')
-            .insert([
-                {
-                    id: uuid,
-                    user_id: userId,
-                    remaining_minutes: 300,
-                    last_reset: new Date() // this gives the current time in correct format
-                },
-            ])
-            .select();
-
-
-
-
-        if (error) {
-            console.error('Supabase update error:', error);
-            return NextResponse.json({ state: false, error: 'Failed to update usage', message: 'Database error' }, { status: 500 });
-        }
+        const savedUsage = await usage.save();
 
         // 6. Success
-        return NextResponse.json({ state: true, data, message: 'Updated Successfully' }, { status: 201 });
+        return NextResponse.json({ state: true, data: savedUsage, message: 'Updated Successfully' }, { status: 201 });
     } catch (err) {
         console.error('Unexpected error:', err);
         return NextResponse.json({ state: false, error: 'Server Error', message: 'Something went wrong' }, { status: 500 });

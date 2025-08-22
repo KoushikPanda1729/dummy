@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import ResumeHtml from '@/lib/mongodb/models/ResumeHtml';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
 
 
 export async function GET(req) {
   try {
+    await dbConnect();
+    
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
     const { success } = await ratelimit.limit(ip);
@@ -22,31 +26,17 @@ export async function GET(req) {
       return NextResponse.json({ state: false, error: 'Unauthorized', message: "Failed" }, { status: 401 });
     }
 
-    // Step 3: Verify the user exists in Supabase "users" table
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('clerk_id', userId)
-      .single();
+    // Step 3: Verify the user exists in MongoDB "users" collection
+    const userRecord = await User.findOne({ clerk_id: userId });
 
-    if (userError || !userRecord) {
+    if (!userRecord) {
       return NextResponse.json({ state: false, error: 'User not found in database', message: "Failed" }, { status: 403 });
     }
 
-    // Step 5: Fetch all interviews  
-
-    let { data: resumes, error } = await supabase
-      .from('resume_html')
-      .select('*')
-      .eq('clerk_id', userId)
-
+    // Step 5: Fetch all resumes 
+    const resumes = await ResumeHtml.find({ clerk_id: userId });
 
     console.log(resumes)
-    console.log("Resume error: ", error)
-
-    if (error) {
-      return NextResponse.json({ state: false, error: 'Failed to fetch resumes', message: "Failed" }, { status: 500 });
-    }
 
     return NextResponse.json({ state: true, data: resumes, message: "Success" }, { status: 200 });
 

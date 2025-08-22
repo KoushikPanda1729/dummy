@@ -1,6 +1,8 @@
 import { Webhook } from 'svix'
 import { headers } from 'next/headers'
-import createNewUser from '@/app/service/user/createNewUser'
+import dbConnect from '@/lib/mongodb/mongoose'
+import User from '@/lib/mongodb/models/User'
+import Usage from '@/lib/mongodb/models/Usage'
 import { verifyWebhook } from '@clerk/nextjs/webhooks'
 
 
@@ -111,23 +113,40 @@ export async function POST(req) {
   const data = evt.data
 
   if (eventType === 'user.created') {
-    const input = {
-      clerk_id: data.id,
-      email: data.email_addresses?.[0]?.email_address,
-      name: `${data.first_name ?? ''} ${data.last_name ?? ''}`.trim(),
-      username: data.username,
-      img_url: data.image_url,
-    }
+    try {
+      await dbConnect();
+      
+      const input = {
+        clerk_id: data.id,
+        email: data.email_addresses?.[0]?.email_address || '',
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        profile_image: data.image_url || '',
+        usage_count: 0,
+        subscription_status: 'inactive'
+      }
 
-    console.log('✅ Creating user:', input)
+      console.log('✅ Creating user:', input)
 
-    const result = await createNewUser(input);
-    console.log("Result: ", result)
-    if (!result?.state) {
-      console.error('❌ Failed to create user in DB')
+      // Create user
+      const user = new User(input);
+      const savedUser = await user.save();
+      console.log('✅ User created in MongoDB:', savedUser._id);
+
+      // Create usage record
+      const usage = new Usage({
+        user_id: data.id,
+        remaining_minutes: 300,
+        last_reset: new Date(),
+      });
+
+      await usage.save();
+      console.log('✅ Usage record created for user:', data.id);
+      
+    } catch (error) {
+      console.error('❌ Failed to create user in MongoDB:', error)
       return new Response('Error saving user', { status: 500 })
     }
-    console.log('✅ User created:', result?.data)
   }
 
   return new Response('Webhook processed', { status: 200 })

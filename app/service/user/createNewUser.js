@@ -1,8 +1,14 @@
 export default async function createNewUser(inputData) {
   console.log("input data from create user: ", inputData);
   try {
+    // For development, use the actual running port or default
+    const port = process.env.PORT || '3000';
+    const baseUrl = process.env.NODE_ENV === 'development' 
+      ? `http://localhost:${port}` 
+      : process.env.NEXT_APP_HOSTNAME || 'https://dummy-pi-two.vercel.app';
+      
     const response = await fetch(
-      `https://dummy-pi-two.vercel.app/api/user/create`,
+      `${baseUrl}/api/user/create`,
       {
         method: "POST",
         headers: {

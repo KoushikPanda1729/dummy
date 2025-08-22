@@ -103,8 +103,10 @@ export default function CreateInterviewForm({ jobDescription }) {
       }
 
       if (createResult.state) {
-        // console.log("Interview created successfully:", createResult);
-        setInterviewData(createResult?.data[0])
+        console.log("Interview created successfully:", createResult);
+        console.log("Setting interviewData to:", createResult?.data);
+        console.log("Interview ID:", createResult?.data?.id);
+        setInterviewData(createResult?.data)  // Fixed: Remove [0] since data is not an array
         setOpen(true); // Trigger success modal or state
       }
     } catch (err) {
@@ -123,6 +125,9 @@ export default function CreateInterviewForm({ jobDescription }) {
 
   const handleStartInterview = async () => {
     setLoadingStart(true);
+    console.log("🚀 Starting interview with interviewData:", interviewData);
+    console.log("🚀 Interview ID for navigation:", interviewData?.id);
+    console.log("🚀 Navigating to:", `/dashboard/meetings/${interviewData?.id}`);
     await router.push(`/dashboard/meetings/${interviewData?.id}`);
   };
 

@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Interview from '@/lib/mongodb/models/Interview';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
+import { ensureUserExists } from '@/lib/utils/ensureUser';
 
 
 export async function GET(req) {
   try {
+    await dbConnect();
+    
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
     const { success } = await ratelimit.limit(ip);
@@ -22,46 +27,45 @@ export async function GET(req) {
       return NextResponse.json({ state: false, error: 'Unauthorized', message: "Failed" }, { status: 401 });
     }
 
-    // Step 3: Verify the user exists in Supabase "users" table
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('clerk_id', userId)
-      .single();
+    // Step 2: Ensure user exists in MongoDB
+    try {
+      await ensureUserExists(user);
+    } catch (error) {
+      console.error('Failed to ensure user exists:', error);
+      return NextResponse.json({ state: false, error: 'Failed to initialize user', message: 'Database error' }, { status: 500 });
+    }
 
-    if (userError || !userRecord) {
+    // Step 3: Verify the user exists in MongoDB "users" collection
+    const userRecord = await User.findOne({ clerk_id: userId });
+
+    if (!userRecord) {
       return NextResponse.json({ state: false, error: 'User not found in database', message: "Failed" }, { status: 403 });
     }
 
-    // Step 5: Fetch all interviews  
+    // Step 4: Fetch all JOB type interviews for the user
+    const jobs = await Interview.find({
+      user_id: userId,
+      type: 'JOB'
+    }).sort({ createdAt: -1 });
 
-    const { data: jobs, error } = await supabase
-  .from('interviews')
-  .select(`
-    *,
-    users (
-      id,
-      name,
-      username,
-      clerk_id,
-      img_url,
-      email,
-      created_at
-    )
-  `)
-  .eq('user_id', userId)
-  .eq('type', 'JOB')
+    // Transform data to include user info in the expected format
+    const jobsWithUserInfo = jobs.map(job => ({
+      ...job.toObject(),
+      id: job._id.toString(),
+      users: {
+        id: userRecord._id.toString(),
+        name: userRecord.name || '',
+        username: userRecord.username || '',
+        clerk_id: userRecord.clerk_id,
+        img_url: userRecord.img_url || '',
+        email: userRecord.email,
+        created_at: userRecord.createdAt
+      }
+    }));
 
+    console.log("jobs length::: ", jobsWithUserInfo?.length)
 
-
-
-    console.log("jobs length::: ", jobs?.length)
-
-    if (error) {
-      return NextResponse.json({ state: false, error: 'Failed to fetch interviews', message: "Failed" }, { status: 500 });
-    }
-
-    return NextResponse.json({ state: true, data: jobs, message: "Success" }, { status: 200 });
+    return NextResponse.json({ state: true, data: jobsWithUserInfo, message: "Success" }, { status: 200 });
 
   } catch (err) {
     console.error('Unexpected error:', err);

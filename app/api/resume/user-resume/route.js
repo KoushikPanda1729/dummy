@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Resume from '@/lib/mongodb/models/Resume';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
+import { ensureUserExists } from '@/lib/utils/ensureUser';
 
 
 export async function GET(req) {

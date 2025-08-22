@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import supabase from '@/lib/supabase/client';
+import dbConnect from '@/lib/mongodb/mongoose';
+import User from '@/lib/mongodb/models/User';
+import Report from '@/lib/mongodb/models/Report';
+import InterviewAttempt from '@/lib/mongodb/models/InterviewAttempt';
 import { ratelimit } from '@/lib/ratelimiter/rateLimiter';
+import { ensureUserExists } from '@/lib/utils/ensureUser';
 
 
 export async function GET(req, context) {
   try {
+    await dbConnect();
+    
     const ip = req.headers.get('x-forwarded-for') || 'anonymous';
 
     const { success } = await ratelimit.limit(ip);
@@ -27,49 +33,55 @@ export async function GET(req, context) {
       return NextResponse.json({ state: false, error: 'Unauthorized', message: "Failed" }, { status: 401 });
     }
 
-    // Step 3: Verify the user exists in Supabase "users" table
-    const { data: userRecord, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('clerk_id', userId)
-      .single();
+    // Step 2: Ensure user exists in MongoDB
+    try {
+      await ensureUserExists(user);
+    } catch (error) {
+      console.error('Failed to ensure user exists:', error);
+      return NextResponse.json({ state: false, error: 'Failed to initialize user', message: 'Database error' }, { status: 500 });
+    }
 
-    if (userError || !userRecord) {
+    // Step 3: Verify the user exists in MongoDB "users" collection
+    const userRecord = await User.findOne({ clerk_id: userId });
+
+    if (!userRecord) {
       return NextResponse.json({ state: false, error: 'User not found in database', message: "Failed" }, { status: 403 });
     }
 
-    // Step 5: Fetch all interviews  
+    // Step 4: Fetch all reports for the specific interview with populated interview attempts
+    const reports = await Report.find({ interview_id: interviewId })
+      .populate({
+        path: 'interview_attempt_id',
+        model: 'InterviewAttempt',
+        select: 'id started_at completed_at status chat_conversation user_id'
+      })
+      .select('id overall_score recommendations createdAt report_data interview_id')
+      .sort({ createdAt: -1 });
 
-    const { data: reports, error } = await supabase
-      .from('ai_reports')
-      .select(`
-        id,
-        recommendation,
-        score,
-        created_at,
-        duration,
-        report,
-        interview_id,
-        interview_attempts (
-          id,
-          started_at,
-          completed_at,
-          status,
-          chat_conversation,
-          users (
-            *
-          )
-        )
-      `)
-      .eq('interview_id', interviewId);
+    // Transform data to match expected frontend format
+    const transformedReports = reports.map(report => ({
+      id: report._id.toString(),
+      recommendation: report.recommendations || [],
+      score: report.overall_score || 0,
+      created_at: report.createdAt,
+      duration: report.report_data?.duration || null,
+      report: report.report_data || {},
+      interview_id: report.interview_id,
+      interview_attempts: report.interview_attempt_id ? {
+        id: report.interview_attempt_id._id.toString(),
+        started_at: report.interview_attempt_id.started_at,
+        completed_at: report.interview_attempt_id.completed_at,
+        status: report.interview_attempt_id.status,
+        chat_conversation: report.interview_attempt_id.chat_conversation,
+        users: {
+          clerk_id: userId
+        }
+      } : null
+    }));
 
-    console.log(reports)
+    console.log(transformedReports)
 
-    if (error) {
-      return NextResponse.json({ state: false, error: 'Failed to fetch interview_attempts', message: "Failed" }, { status: 500 });
-    }
-
-    return NextResponse.json({ state: true, data: reports, message: "Success" }, { status: 200 });
+    return NextResponse.json({ state: true, data: transformedReports, message: "Success" }, { status: 200 });
 
   } catch (err) {
     console.error('Unexpected error:', err);
